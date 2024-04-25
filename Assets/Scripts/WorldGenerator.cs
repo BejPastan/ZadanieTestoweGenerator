@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TreeEditor;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class WorldGenerator : MonoBehaviour
@@ -21,6 +22,9 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField]
     GameObject cellPref;
 
+    [SerializeField]
+    MeshRenderer meshRenderer;
+
     private void Start()
     {
         Grid.instance.SetMapSize(settings.width, settings.length);
@@ -39,6 +43,25 @@ public class WorldGenerator : MonoBehaviour
 
     public void VisualiseHeightMap(ref float[,] heightMap, ref Vector2[,] slopeMap)
     {
+        //calc elevation range
+        float elevationRange = settings.maxElevation - settings.minElevation;
+
+        //get texture
+        Texture2D texture = new Texture2D(settings.width, settings.length);
+        //set pixels
+        for (int i = 0; i < settings.width; i++)
+        {
+            for (int j = 0; j < settings.length; j++)
+            {
+                texture.SetPixel(i, j, new Color(heightMap[i, j]/elevationRange, heightMap[i, j]/elevationRange, heightMap[i, j] / elevationRange));
+            }
+        }
+        //apply texture
+        texture.Apply();
+        //set texture to mesh
+        meshRenderer.material.mainTexture = texture;
+
+
         //generate cell Prefab
         for (int x = 0; x < settings.width; x++)
         {
@@ -46,20 +69,21 @@ public class WorldGenerator : MonoBehaviour
             {
                 Transform cell = Instantiate(cellPref, new Vector3(x, z, 0), Quaternion.identity).transform;
 
-                switch(heightMap[x, z])
+                switch (heightMap[x, z])
                 {
-                    case float n when n<0:
+                    case float n when n < 0:
                         {
                             Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.water, slopeMap[x, z], cell);
+                            continue;
                             break;
                         }
                 }
 
                 switch (slopeMap[x, z].magnitude)
                 {
-                    case float n when n < 0.3f:
+                    case float n when n < 0.4f:
                         {
-                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.earth, slopeMap[x,z], cell);
+                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.earth, slopeMap[x, z], cell);
                             continue;
                             break;
                         }
@@ -88,6 +112,7 @@ public static class HeightMapGenerator
         gradientMap = new Vector2[width, length];
 
         float highestPoint = 0;
+        float lowestPoint = 10;
 
         for (int i = 0; i < 4; i++)
         {
@@ -128,20 +153,35 @@ public static class HeightMapGenerator
                 {
                     highestPoint = heightMap[i, j];
                 }
+                if (heightMap[i, j] < lowestPoint)
+                {
+                    lowestPoint = heightMap[i, j];
+                }
             }
         }
 
-        Debug.LogWarning("hightstPoint: " + highestPoint);
+        //Debug.LogWarning("hightstPoint: " + highestPoint);
+        //Debug.LogWarning("lowestPoint: " + lowestPoint);
         //normalize height map
+
+        float multiplier = (maxElevation - minElevation)/(highestPoint-lowestPoint);
+        //Debug.Log("multiplier: " + multiplier);
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < length; j++)
             {
-                Debug.Log("heightMap before: " + heightMap[i, j]);
-                heightMap[i, j] /= highestPoint;
-                Debug.Log("heightMap after: " + heightMap[i, j]);
-                heightMap[i, j] = Mathf.Lerp(minElevation, maxElevation-minElevation, heightMap[i, j]);
-                Debug.Log("heightMap: " + heightMap[i, j]);
+                //Debug.Log("heightMap before: " + heightMap[i, j]);
+                heightMap[i, j] = (heightMap[i, j]-lowestPoint) * multiplier + minElevation;
+                //Debug.Log("heightMap after: " + heightMap[i, j]);
+
+                if (heightMap[i, j] < 0)
+                {
+                    //Debug.LogWarning("heightMap: " + heightMap[i, j]);
+                }
+                else
+                {
+                    //Debug.Log("heightMap: " + heightMap[i, j]);
+                }
             }
         }
     }
@@ -155,27 +195,24 @@ public static class HeightMapGenerator
             for (int j = 0; j < heightMap.GetLength(1); j++)
             {
                 Vector2 gradientVector = new Vector2();
-                float slope;
                 if (i > 0 && j > 0 && i < heightMap.GetLength(0) - 1 && j < heightMap.GetLength(1) - 1)
                 {
                     gradientVector.x = heightMap[i + 1, j] - heightMap[i - 1, j];
                     gradientVector.y = heightMap[i, j + 1] - heightMap[i, j - 1];
-
-                    Debug.Log("gradientVector: " + gradientVector);
-
-                    slope = gradientVector.x * 4 / (3 * gradientVector.y + 4);
-                    gradientVector.x *= slope;
-
-                    slope = gradientVector.y * 4 / (3 * gradientVector.x + 4);
-                    gradientVector.y *= slope;
-
-                    Debug.Log("gradientVector after: " + gradientVector);
                 }
                 gradient[i, j] = gradientVector;
             }
         }
 
         return gradient;
+    }
+}
+
+public static class WaterGenerator
+{
+    public static Vector2Int GenerateWater(ref float[,] heightMap, ref Vector2[,] gradientMap)
+    {
+        
     }
 }
 

@@ -15,6 +15,6 @@ MonoBehaviour:
   seed: 0
   width: 100
   length: 100
-  maxElevation: 10
-  minElevation: 0
-  mainScale: 0.4
+  maxElevation: 1000
+  minElevation: -100
+  mainScale: 0.2
