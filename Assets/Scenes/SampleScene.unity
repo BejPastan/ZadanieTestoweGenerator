@@ -531,6 +531,7 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: ad86ac7e586593e49a0140faf10074ef, type: 2}
   elementSprite: {fileID: 11400000, guid: 35ea98ac7fd5762429fdb81f026a09f9, type: 2}
   cellPref: {fileID: 7784851217114769487, guid: 31f564275a098d94289bd9ebdff80358, type: 3}
+  elementPref: {fileID: 5699235231221426712, guid: 9ead154dd58ce864895b348762b7fa1b, type: 3}
   meshRenderer: {fileID: 1220563221}
 --- !u!114 &1605300443
 MonoBehaviour:
