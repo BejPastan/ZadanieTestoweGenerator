@@ -23,7 +23,7 @@ public class Grid : MonoBehaviour
         {
             for (int j = 0; j < Cells.GetLength(1); j++)
             {
-                heightMap[i, j] = Cells[i, j].height;
+                heightMap[i, j] = Cells[i, j].Height;
             }
         }
         return heightMap;

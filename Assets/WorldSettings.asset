@@ -15,7 +15,7 @@ MonoBehaviour:
   seed: 0
   width: 100
   length: 100
-  maxElevation: 1400
-  minElevation: -100
-  mainScale: 0.2
+  maxElevation: 90
+  minElevation: -10
+  cellSize: 5
   riverCount: 10
