@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 0}
   m_Name: WorldSettings
   m_EditorClassIdentifier: Assembly-CSharp::WorldSettings
-  seed: 0
+  seed: 2
   width: 100
   length: 100
-  maxElevation: 90
+  maxElevation: 100
   minElevation: -10
-  cellSize: 5
-  riverCount: 10
+  cellSize: 3
+  riverCount: 0

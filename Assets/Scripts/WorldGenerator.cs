@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 
@@ -34,7 +36,7 @@ public class WorldGenerator : MonoBehaviour
 
     private async void GenerateWorld()
     {
-        HeightMapGenerator.GenerateHeightMap(settings.width, settings.length, settings.maxElevation, settings.minElevation, out float[,] heightMap, out Vector2[,] slopeGradient, settings.cellSize);
+        HeightMapGenerator.GenerateHeightMap(settings.width, settings.length, settings.maxElevation, settings.minElevation, out float[,] heightMap, out Vector2[,] slopeGradient, settings.cellSize, settings.seed);
 
         Grid.instance.Cells = new CellData[settings.width, settings.length];
         VisualiseHeightMap(ref heightMap, ref slopeGradient);
@@ -94,12 +96,14 @@ public class WorldGenerator : MonoBehaviour
                 {
                     case float n when n < 1f:
                         {
+                            //here goes seelcting ground texture based on height
+                            Debug.Log($"slope: {slopeMap[x, z].magnitude} create earth");
                             Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.earth, slopeMap[x, z], cell);
                             continue;
                         }
                     default:
                         {
-                            //Debug.Log("slope: " + slopeMap[x, z].magnitude);
+                            Debug.Log("slope: " + slopeMap[x, z].magnitude);
                             Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.stone, slopeMap[x, z], cell);
                             continue;
                         }
@@ -176,12 +180,12 @@ public class WorldGenerator : MonoBehaviour
     public void VisualiseElement(ref List<Vector2Int> elements, Elements elementType, GroundType[] allowedGrounds)
     {
         
-        Debug.Log($"elements: {elements.Count}");
+        //Debug.Log($"elements: {elements.Count}");
         foreach(Vector2Int element in elements)
         {
             if (allowedGrounds.Contains(Grid.instance.Cells[element.x, element.y].Ground) == false)
             {
-                Debug.LogWarning("wrong ground");
+                //Debug.LogWarning("wrong ground");
                 continue;
             }
             //get cell
@@ -197,7 +201,7 @@ public class WorldGenerator : MonoBehaviour
 
 public static class HeightMapGenerator
 {
-    public static void GenerateHeightMap(int width, int length, float maxElevation, float minElevation, out float[,] heightMap, out Vector2[,] gradientMap, float mainScale)
+    public static void GenerateHeightMap(int width, int length, float maxElevation, float minElevation, out float[,] heightMap, out Vector2[,] gradientMap, float mainScale, float seed)
     {
         heightMap = new float[width, length];
         gradientMap = new Vector2[width, length];
@@ -215,7 +219,7 @@ public static class HeightMapGenerator
             {
                 for (int z = 0; z < length; z++)
                 {
-                    newHeightMap[x, z] = Mathf.PerlinNoise(((float)x / (float)width) * (scale), ((float)z / (float)length) * (scale));
+                    newHeightMap[x, z] = Mathf.PerlinNoise(((float)x / (float)width) * (scale) + seed, ((float)z / (float)length) * (scale) + seed);
                 }
             }
 
@@ -253,10 +257,12 @@ public static class HeightMapGenerator
                 heightMap[i, j] = (heightMap[i, j]-lowestPoint) * multiplier + minElevation;
             }
         }
-        gradientMap = CalcGradient(heightMap, mainScale);
+        gradientMap = MakeGradientMap(heightMap, mainScale);
+        Erode(ref heightMap, mainScale, gradientMap);
+        gradientMap = MakeGradientMap(heightMap, mainScale);
     }
 
-    private static Vector2[,] CalcGradient(float[,] heightMap, float cellSize)
+    private static Vector2[,] MakeGradientMap(float[,] heightMap, float cellSize)
     {
         //yeeee, I need to change this to calc gradient with gettin into account map size
         
@@ -270,18 +276,42 @@ public static class HeightMapGenerator
                 Vector2 gradientVector = new();
                 if (i > 0 && j > 0 && i < heightMap.GetLength(0) - 1 && j < heightMap.GetLength(1) - 1)
                 {
-                    gradientVector.x = heightMap[i + 1, j] - heightMap[i - 1, j];
-                    gradientVector.y = heightMap[i, j + 1] - heightMap[i, j - 1];
-                    //Debug.Log($"x: {gradientVector.x} y: {gradientVector.y}");
-                    gradientVector /= 2;
-                    gradientVector /= cellSize;
-                    //Debug.Log($"x: {gradientVector.x} y: {gradientVector.y} magnitude: {gradientVector.magnitude}");
+                    gradientVector = CalcGradient(ref heightMap, new Vector2Int(i, j), cellSize);
                 }
                 gradient[i, j] = gradientVector;
+                Debug.Log($"out gradient: {gradient[i, j].magnitude}");
             }
         }
 
         return gradient;
+    }
+
+    private static Vector2 CalcGradient(ref float[,] heightMap, Vector2Int point, float cellSize)
+    {
+        Vector2 gradientVector = new();
+        if (point.x > 0 && point.y > 0 && point.x < heightMap.GetLength(0) - 1 && point.y < heightMap.GetLength(1) - 1)
+        {
+            gradientVector.x = heightMap[point.x + 1, point.y] - heightMap[point.x - 1, point.y];
+            gradientVector.y = heightMap[point.x, point.y + 1] - heightMap[point.x, point.y - 1];
+            Debug.Log($"gradient: {gradientVector.magnitude}");
+            gradientVector /= 2;
+            gradientVector /= cellSize;
+            Debug.Log($"gradient: {gradientVector.magnitude}");
+        }
+        return gradientVector;
+    }
+
+    private static void Erode(ref float[,] heightMap, float cellSize, Vector2[,] gradientMap)
+    {
+        for (int i = 0; i < heightMap.GetLength(0); i++)
+        {
+            for (int j = 0; j < heightMap.GetLength(1); j++)
+            {
+                Debug.Log($"gradient: {gradientMap[i, j].magnitude} height: {heightMap[i, j]}");
+                heightMap[i, j] *= (-0.2f * Mathf.Pow(gradientMap[i, j].magnitude, 2))+1;
+                Debug.Log($"height: {heightMap[i, j]}");
+            }
+        }
     }
 }
 
@@ -410,7 +440,7 @@ public static class ElementsGeneration
         //do untill have any neighbours
         for(int i = 0; i < 10000; i++)
         {
-            Debug.Log($"i: {i} neighbours: {neighbours.Count}");
+            //Debug.Log($"i: {i} neighbours: {neighbours.Count}");
             //get first neighbour
             Vector2Int neighbour = neighbours[0];
             
@@ -419,25 +449,25 @@ public static class ElementsGeneration
             float chance = 1f;
             if(FindClosestElement(Elements.river, neighbour, out closestRiver))
             {
-                Debug.Log("closest river: " + closestRiver);
+                //Debug.Log("closest river: " + closestRiver);
                 float distance = Vector2.Distance(neighbour, closestRiver);
-                chance -= 0.3f * distance;
+                chance -= 0.2f * distance;
                 //check if have any neighbours in forests list
                 foreach(Vector2Int nextTo in HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap))
                 {
                     if(forests.Contains(nextTo))
                     {
-                        chance += 0.05f;
+                        chance += 0.035f;
                     }
                 }
 
-                Debug.Log($"chance: {chance} distance: {distance}");
+                //Debug.Log($"chance: {chance} distance: {distance}");
 
                 float diceRoll = UnityEngine.Random.Range(0f, 1f);
-                Debug.Log($"diceRoll: {diceRoll} chance: {chance}");
+                //Debug.Log($"diceRoll: {diceRoll} chance: {chance}");
                 if(diceRoll < chance)
                 {
-                    Debug.LogWarning("forest");
+                    //Debug.LogWarning("forest");
                     forests.Add(neighbour);
 
                     Vector2Int[] potentialNewFields =  HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap);
