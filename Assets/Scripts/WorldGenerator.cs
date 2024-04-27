@@ -328,7 +328,7 @@ public static class WaterGenerator
             //if lowest neighbour is higher than current point break
             if (heightMap[lowestNeighbour.x, lowestNeighbour.y] >= heightMap[currentPoint.x, currentPoint.y])
             {
-                List<Vector2Int> lake = GenerateLake(lowestNeighbour, 10);
+                List<Vector2Int> lake = GenerateLake(lowestNeighbour, 4);
 
                 lakes.AddRange(lake);
                 //Debug.Log($"lake: {lakes.Count} break at i:{i}");
@@ -421,7 +421,7 @@ public static class ElementsGeneration
             {
                 Debug.Log("closest river: " + closestRiver);
                 float distance = Vector2.Distance(neighbour, closestRiver);
-                chance -= 0.4f * distance;
+                chance -= 0.3f * distance;
                 //check if have any neighbours in forests list
                 foreach(Vector2Int nextTo in HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap))
                 {
