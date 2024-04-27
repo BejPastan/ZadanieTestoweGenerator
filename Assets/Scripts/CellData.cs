@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public struct CellData
+public class CellData
 {
     public float Height { get; private set;}
     public GroundType Ground { get; private set; }
@@ -27,11 +27,11 @@ public struct CellData
         element.GetComponent<SpriteRenderer>().sprite = WorldGenerator.instance.elementSprite.GetSprite(ground);
     }
 
-    public readonly void AddElement(Elements element, Transform elementTrans)
+    public void AddElement(Elements element, Transform elementTrans)
     {
         Elements.Add(element);
         elementsTransform.Add(elementTrans);
-        elementTrans.transform.SetParent(this.Element);
+        elementTrans.transform.SetParent(Element);
         elementTrans.transform.localPosition = Vector3.zero;
         elementTrans.GetComponentInChildren<SpriteRenderer>().sprite = WorldGenerator.instance.elementSprite.GetSprite(element);
     }
@@ -42,7 +42,7 @@ public struct CellData
         Element.GetComponent<SpriteRenderer>().sprite = WorldGenerator.instance.elementSprite.GetSprite(ground);
     }
 
-    public readonly void RemoveElement(Elements element)
+    public void RemoveElement(Elements element)
     {
         for (int i = 0; i < Elements.Count; i++)
         {
@@ -56,7 +56,7 @@ public struct CellData
         }
     }
 
-    public readonly void RemoveAllElements()
+    public void RemoveAllElements()
     {
         //remove all elements
         while (Elements.Count > 0)

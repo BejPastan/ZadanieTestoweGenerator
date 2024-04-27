@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 public class WorldGenerator : MonoBehaviour
@@ -31,19 +32,24 @@ public class WorldGenerator : MonoBehaviour
         GenerateWorld();
     }
 
-    private void GenerateWorld()
+    private async void GenerateWorld()
     {
         HeightMapGenerator.GenerateHeightMap(settings.width, settings.length, settings.maxElevation, settings.minElevation, out float[,] heightMap, out Vector2[,] slopeGradient, settings.cellSize);
 
         Grid.instance.Cells = new CellData[settings.width, settings.length];
         VisualiseHeightMap(ref heightMap, ref slopeGradient);
+        List<Vector2Int> rivers = new();
         for(int i = 0; i < settings.riverCount; i++)
         {
             Vector2Int[] river = WaterGenerator.GenerateWater(ref heightMap, out List<Vector2Int> lakes);
-            Debug.LogWarning($"river: {river.Length} lakes: {lakes.Count}");
+            //Debug.LogWarning($"river: {river.Length} lakes: {lakes.Count}");
             VisualiseRivers(ref river);
+            rivers.AddRange(river);
             VisualiseLakes(ref lakes);
         }
+        List<Vector2Int> forests = ElementsGeneration.GenerateForests(ref rivers);
+        VisualiseElement(ref forests, Elements.forest, new GroundType[] { GroundType.earth });
+
     }
 
     public void VisualiseHeightMap(ref float[,] heightMap, ref Vector2[,] slopeMap)
@@ -93,7 +99,7 @@ public class WorldGenerator : MonoBehaviour
                         }
                     default:
                         {
-                            Debug.Log("slope: " + slopeMap[x, z].magnitude);
+                            //Debug.Log("slope: " + slopeMap[x, z].magnitude);
                             Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.stone, slopeMap[x, z], cell);
                             continue;
                         }
@@ -109,14 +115,11 @@ public class WorldGenerator : MonoBehaviour
         {
             if (Grid.instance.Cells[riverMap[i].x, riverMap[i].y].Ground == GroundType.water)
             {
+                //remove all elements after from array
+                Array.Resize(ref riverMap, i);
                 break;
             }
             Vector2Int river = riverMap[i];
-            //check if river is not on the water
-            if (Grid.instance.Cells[river.x, river.y].Ground == GroundType.water)
-            {
-                break;
-            }
             //create river object
             
             //calc river position
@@ -167,6 +170,27 @@ public class WorldGenerator : MonoBehaviour
             cell.RemoveAllElements();
             //change ground to water
             cell.SetGroundType(GroundType.water);
+        }
+    }
+
+    public void VisualiseElement(ref List<Vector2Int> elements, Elements elementType, GroundType[] allowedGrounds)
+    {
+        
+        Debug.Log($"elements: {elements.Count}");
+        foreach(Vector2Int element in elements)
+        {
+            if (allowedGrounds.Contains(Grid.instance.Cells[element.x, element.y].Ground) == false)
+            {
+                Debug.LogWarning("wrong ground");
+                continue;
+            }
+            //get cell
+            CellData cell = Grid.instance.Cells[element.x, element.y];
+            //create element object
+            Transform elementObj = Instantiate(elementPref, new Vector3(element.x, element.y, 0), Quaternion.identity).transform;
+            elementObj.name = $"element_{elementType}_{element.x}_{element.y}";
+            //add element to cell
+            cell.AddElement(elementType, elementObj);
         }
     }
 }
@@ -248,10 +272,10 @@ public static class HeightMapGenerator
                 {
                     gradientVector.x = heightMap[i + 1, j] - heightMap[i - 1, j];
                     gradientVector.y = heightMap[i, j + 1] - heightMap[i, j - 1];
-                    Debug.Log($"x: {gradientVector.x} y: {gradientVector.y}");
+                    //Debug.Log($"x: {gradientVector.x} y: {gradientVector.y}");
                     gradientVector /= 2;
                     gradientVector /= cellSize;
-                    Debug.Log($"x: {gradientVector.x} y: {gradientVector.y} magnitude: {gradientVector.magnitude}");
+                    //Debug.Log($"x: {gradientVector.x} y: {gradientVector.y} magnitude: {gradientVector.magnitude}");
                 }
                 gradient[i, j] = gradientVector;
             }
@@ -275,7 +299,7 @@ public static class WaterGenerator
         lakes = new List<Vector2Int>();
         Vector2Int[] river = new Vector2Int[1];
         river[0] = startPoint;
-        for (int i = 0; i < 1000; i++)
+        while (true)
         {
             Vector2Int currentPoint = river[^1];
             //get lowest neighbour
@@ -307,7 +331,7 @@ public static class WaterGenerator
                 List<Vector2Int> lake = GenerateLake(lowestNeighbour, 10);
 
                 lakes.AddRange(lake);
-                Debug.Log($"lake: {lakes.Count} break at i:{i}");
+                //Debug.Log($"lake: {lakes.Count} break at i:{i}");
 
                 break;
             }
@@ -317,10 +341,6 @@ public static class WaterGenerator
 
         return river;
     }
-
-
-    //move this  to HeightMapService
-
 
     public static List<Vector2Int> GenerateLake(Vector2Int startPoint, int minSize)
     {
@@ -356,8 +376,176 @@ public static class WaterGenerator
                 }
             }
         } while (lake.Count < minSize);
-        Debug.Log("lake: " + lake.Count);
+        //Debug.Log("lake: " + lake.Count);
         return lake;
+    }
+}
+
+public static class ElementsGeneration
+{
+    public static List<Vector2Int> GenerateForests(ref List<Vector2Int> rivers)
+    {
+        List<Vector2Int> forests = new();
+        List<Vector2Int> neighbours = new();
+        float[,] heightMap = Grid.instance.GetHeightMap();
+
+        //get river neighbours
+        for (int i = 0; i < rivers.Count; i++)
+        {
+            neighbours.AddRange(HeightMapService.GetLowestStrictNeighbour(rivers[i], ref heightMap));
+        }
+        neighbours = neighbours.Distinct().ToList();
+        for (int i = 0; i < neighbours.Count; i++)
+        {
+            for (int j = 0; j < rivers.Count; j++)
+            {
+                if (neighbours[i] == rivers[j])
+                {
+                    neighbours.RemoveAt(i);
+                    i--;
+                    break;
+                }
+            }
+        }
+        //do untill have any neighbours
+        for(int i = 0; i < 10000; i++)
+        {
+            Debug.Log($"i: {i} neighbours: {neighbours.Count}");
+            //get first neighbour
+            Vector2Int neighbour = neighbours[0];
+            
+            //calc distance to river
+            Vector2Int closestRiver;
+            float chance = 1f;
+            if(FindClosestElement(Elements.river, neighbour, out closestRiver))
+            {
+                Debug.Log("closest river: " + closestRiver);
+                float distance = Vector2.Distance(neighbour, closestRiver);
+                chance -= 0.4f * distance;
+                //check if have any neighbours in forests list
+                foreach(Vector2Int nextTo in HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap))
+                {
+                    if(forests.Contains(nextTo))
+                    {
+                        chance += 0.05f;
+                    }
+                }
+
+                Debug.Log($"chance: {chance} distance: {distance}");
+
+                float diceRoll = UnityEngine.Random.Range(0f, 1f);
+                Debug.Log($"diceRoll: {diceRoll} chance: {chance}");
+                if(diceRoll < chance)
+                {
+                    Debug.LogWarning("forest");
+                    forests.Add(neighbour);
+
+                    Vector2Int[] potentialNewFields =  HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap);
+
+                    //check if potential new fields are not in forests list
+                    for (int j = 0; j < potentialNewFields.Length; j++)
+                    {
+                        if (forests.Contains(potentialNewFields[j]) == false && Grid.instance.GetCellData(potentialNewFields[j].x, potentialNewFields[j].y).Ground == GroundType.earth)
+                        {
+                            neighbours.Add(potentialNewFields[j]);
+                        }
+                    }
+                }
+                                
+            }
+            neighbours.RemoveAt(0);
+            if(neighbours.Count == 0)
+            {
+                break;
+            }
+        }
+        //Debug.Log("forests: " + forests.Count);
+        return forests;
+    }
+
+    private static bool FindClosestElement(Elements elementToFind,  Vector2Int startPos, out Vector2Int closestElement)
+    {
+        closestElement = new();
+
+        bool inRange;
+        int radius = 0;
+        while(true)
+        {
+            inRange = false;
+            for (int x = -radius; x <= 0; x++)
+            {
+                for (int y = -radius; y <= 0; y++)
+                {
+                    CellData cell = Grid.instance.GetCellData(startPos.x + x, startPos.y + y);
+                    //check x, y
+                    if(cell != null)
+                    {
+                        inRange = true;
+                        //Debug.Log("in range");
+                        if(cell.Elements.Contains(elementToFind))
+                        {
+                            closestElement = new Vector2Int(startPos.x + x, startPos.y + y);
+                            //Debug.Log("found element");
+                            return true;
+                        }
+                    }
+
+                    //check -x, y
+                    cell = Grid.instance.GetCellData(startPos.x - x, startPos.y + y);
+                    if (cell != null)
+                    {
+                        inRange = true;
+                        //Debug.Log("in range");
+                        if (cell.Elements.Contains(elementToFind))
+                        {
+                            closestElement = new Vector2Int(startPos.x - x, startPos.y + y);
+                            //Debug.Log("found element");
+                            return true;
+                        }
+                    }
+
+                    //check x, -y
+                    cell = Grid.instance.GetCellData(startPos.x + x, startPos.y - y);
+                    if (cell != null)
+                    {
+                        inRange = true;
+                        //Debug.Log("in range");
+                        if (cell.Elements.Contains(elementToFind))
+                        {
+                            closestElement = new Vector2Int(startPos.x + x, startPos.y - y);
+                            //Debug.Log("found element");
+                            return true;
+                        }
+                    }
+
+                    //check -x, -y
+                    cell = Grid.instance.GetCellData(startPos.x - x, startPos.y - y);
+                    if (cell != null)
+                    {
+                        inRange = true;
+                        //Debug.Log("in range");
+                        if (cell.Elements.Contains(elementToFind))
+                        {
+                            closestElement = new Vector2Int(startPos.x - x, startPos.y - y);
+                            //Debug.Log("found element");
+                            return true;
+                        }
+                    }
+
+                    //optimization for not checking all cells every time, but only cells on the edge of the square
+                    if(x!=-radius)
+                    {
+                        break;
+                    }   
+                }
+            }
+            if(inRange == false)
+            {
+                //Debug.Log("not in range");
+                return false;
+            }
+            radius++;
+        }
     }
 }
 
@@ -430,12 +618,26 @@ public static class HeightMapService
         neighbours[2] = new Vector2Int(point.x, point.y + 1);
         neighbours[3] = new Vector2Int(point.x, point.y - 1);
 
+        //check if neighbours are not out of bounds
+        for (int i = 0; i < neighbours.Length; i++)
+        {
+            if (neighbours[i].x < 0 || neighbours[i].x >= heightMap.GetLength(0) || neighbours[i].y < 0 || neighbours[i].y >= heightMap.GetLength(1))
+            {
+                //remove out of bounds neighbour
+                neighbours[i] = neighbours[^1];
+                Array.Resize(ref neighbours, neighbours.Length - 1);
+                i--;
+            }
+        }
+
         //sort neighbours by height
         SortByHeight(ref neighbours);
 
 
         return neighbours;
     }
+
+    
 }
 
 [CreateAssetMenu(fileName = "WorldSettings", menuName = "WorldSettings")]

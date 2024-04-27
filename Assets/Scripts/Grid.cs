@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class Grid : MonoBehaviour
@@ -27,5 +28,24 @@ public class Grid : MonoBehaviour
             }
         }
         return heightMap;
+    }
+
+    public int GetWidth()
+    {
+        return Cells.GetLength(0);
+    }
+
+    public int GetLength()
+    {
+        return Cells.GetLength(1);
+    }
+
+    public CellData GetCellData(int x, int y)
+    {
+        if(x < 0 || x >= Cells.GetLength(0) || y < 0 || y >= Cells.GetLength(1))
+        {
+            return null;
+        }
+        return Cells[x, y];
     }
 }

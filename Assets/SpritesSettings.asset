@@ -17,6 +17,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: b79779d55057ef44f967ab0861967f8c, type: 3}
   - {fileID: 21300000, guid: 5a04ae4fcab7a9349a40665c26c9bbbe, type: 3}
   - {fileID: 21300000, guid: c5246e07f0171b04f856bc57099a67bd, type: 3}
-  elements: 00000000
+  elements: 0000000001000000
   elementSprite:
   - {fileID: 21300000, guid: d83fdb656bf44ca46997360b15ea24ff, type: 3}
+  - {fileID: 21300000, guid: 312ad13d9fb4de64aad0975bd61fe7d4, type: 3}
