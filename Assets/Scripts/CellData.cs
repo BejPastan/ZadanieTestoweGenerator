@@ -117,4 +117,3 @@ public class ElementSprite : ScriptableObject
         return null;
     }
 }
-
