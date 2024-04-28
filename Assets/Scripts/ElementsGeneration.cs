@@ -66,7 +66,7 @@ public static class ElementsGeneration
                     //check if potential new fields are not in forests list
                     for (int j = 0; j < potentialNewFields.Length; j++)
                     {
-                        if (forests.Contains(potentialNewFields[j]) == false && Grid.instance.GetCellData(potentialNewFields[j].x, potentialNewFields[j].y).Ground == GroundType.earth)
+                        if (forests.Contains(potentialNewFields[j]) == false && Grid.instance.GetCellData(potentialNewFields[j].x, potentialNewFields[j].y).Ground == GroundType.plains)
                         {
                             neighbours.Add(potentialNewFields[j]);
                         }
@@ -82,6 +82,85 @@ public static class ElementsGeneration
         }
         //Debug.Log("forests: " + forests.Count);
         return forests;
+    }
+
+    public static List<Vector2Int> GenerateSettlements(int amount, List<Vector2Int> rivers)
+    {
+        List<Vector2Int> settlements = new();
+        float[,] heightMap = Grid.instance.GetHeightMap();
+        for(int i = 0; i < amount; i++)
+        {
+            //get random river point
+            Vector2Int riverPoint = rivers[UnityEngine.Random.Range(0, rivers.Count)];
+
+            //get their neighbours
+            Vector2Int[] neighbours = HeightMapService.GetLowestStrictNeighbour(riverPoint, ref heightMap);
+            Vector2Int settelment = new();
+            //select one that has no water or river and is plains or highlands
+            for (int j = 0; j < neighbours.Length; j++)
+            {
+                
+                if (Grid.instance.GetCellData(neighbours[j].x, neighbours[j].y).Ground == GroundType.plains || Grid.instance.GetCellData(neighbours[j].x, neighbours[j].y).Ground == GroundType.highLands)
+                {
+                    if (Grid.instance.GetCellData(neighbours[j].x, neighbours[j].y).Elements.Contains(Elements.river) == false)
+                    {
+                        settelment = neighbours[j];
+                        break;
+                    }
+                }
+            }
+
+            int stoneNumber = 0;
+            List<Vector2Int> fields = new();
+
+            for(int x = -4; x < 5; x++)
+            {
+                for(int y = -4; y < 5; y++)
+                {
+                    if(Vector2.Distance(new Vector2Int(0, 0), new Vector2Int(x, y)) <= 4 && Grid.instance.GetCellData(x + settelment.x, y+settelment.y)!= null)
+                    {
+                        switch(Grid.instance.GetCellData(settelment.x + x, settelment.y + y).Ground)
+                        {
+                            case GroundType.slopes:
+                                stoneNumber++;
+                                break;
+                            case GroundType.mountains:
+                                stoneNumber++;
+                                break;
+                            case GroundType.plains:
+                                if(Grid.instance.GetCellData(settelment.x + x, settelment.y + y).Elements.Contains(Elements.river) == false && Grid.instance.GetCellData(settelment.x + x, settelment.y + y).Elements.Contains(Elements.forest) == false)
+                                {
+                                    fields.Add(new Vector2Int(settelment.x + x, settelment.y + y));
+                                }
+                                break;
+                            case GroundType.highLands:
+                                if (Grid.instance.GetCellData(settelment.x + x, settelment.y + y).Elements.Contains(Elements.river) == false && Grid.instance.GetCellData(settelment.x + x, settelment.y + y).Elements.Contains(Elements.forest) == false)
+                                {
+                                    fields.Add(new Vector2Int(settelment.x + x, settelment.y + y));
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+            if(stoneNumber <= 0 || fields.Count < 4)
+            {
+                i--;
+            }
+            else
+            {
+                settlements.Add(settelment);
+            }
+            rivers.Remove(riverPoint);
+            if(rivers.Count == 0)
+            {
+                break;
+            }
+        }
+
+        return settlements;
     }
 
     private static bool FindClosestElement(Elements elementToFind,  Vector2Int startPos, out Vector2Int closestElement)

@@ -18,4 +18,4 @@ MonoBehaviour:
   maxElevation: 100
   minElevation: -10
   cellSize: 3
-  riverCount: 0
+  riverCount: 10

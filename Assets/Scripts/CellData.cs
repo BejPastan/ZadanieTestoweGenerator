@@ -69,15 +69,19 @@ public class CellData
 
 public enum GroundType
 {
-    stone,
-    earth,
+    slopes,
+    plains,
+    highLands,
+    mountains,
+    mountainTop,
     water
 }
 
 public enum Elements
 {
     river,
-    forest
+    forest,
+    settlement
 }
 
 [CreateAssetMenu(fileName = "ElementSprite", menuName = "ElementSprite")]

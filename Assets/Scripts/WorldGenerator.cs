@@ -50,8 +50,28 @@ public class WorldGenerator : MonoBehaviour
             VisualiseLakes(ref lakes);
         }
         List<Vector2Int> forests = ElementsGeneration.GenerateForests(ref rivers);
-        VisualiseElement(ref forests, Elements.forest, new GroundType[] { GroundType.earth });
+        VisualiseElement(ref forests, Elements.forest, new GroundType[] { GroundType.plains, GroundType.highLands, GroundType.mountains, GroundType.mountainTop});
 
+        List<Vector2Int> settlements = ElementsGeneration.GenerateSettlements(4, rivers);
+        VisualiseElement(ref settlements, Elements.settlement, new GroundType[] { GroundType.plains, GroundType.highLands });
+        foreach (Vector2Int settlement in settlements)
+        {
+            //remove forest from around settlement in radius 2
+            for (int x = -2; x < 3; x++)
+            {
+                for (int y = -2; y < 3; y++)
+                {
+                    if (Vector2.Distance(new Vector2Int(0, 0), new Vector2Int(x, y)) <= 2 && Grid.instance.GetCellData(x + settlement.x, y + settlement.y)!= null)
+                    {
+                        if (Grid.instance.GetCellData(settlement.x + x, settlement.y + y).Elements.Contains(Elements.forest))
+                        {
+                            Grid.instance.GetCellData(settlement.x + x, settlement.y + y).RemoveElement(Elements.forest);
+                        }
+                    }
+                }
+            }
+
+        }
     }
 
     public void VisualiseHeightMap(ref float[,] heightMap, ref Vector2[,] slopeMap)
@@ -97,14 +117,35 @@ public class WorldGenerator : MonoBehaviour
                     case float n when n < 1f:
                         {
                             //here goes seelcting ground texture based on height
-                            Debug.Log($"slope: {slopeMap[x, z].magnitude} create earth");
-                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.earth, slopeMap[x, z], cell);
+                            switch(heightMap[x, z])
+                            {
+                                case < 20f:
+                                    {
+                                        Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.plains, slopeMap[x, z], cell);
+                                        continue;
+                                    }
+                                case < 40f:
+                                    {
+                                        Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.highLands, slopeMap[x, z], cell);
+                                        continue;
+                                    }
+                                case < 60f:
+                                    {
+                                        Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.mountains, slopeMap[x, z], cell);
+                                        continue;
+                                    }
+                                default:
+                                    {
+                                        Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.mountainTop, slopeMap[x, z], cell);
+                                        continue;
+                                    }
+                            }
+                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.plains, slopeMap[x, z], cell);
                             continue;
                         }
                     default:
                         {
-                            Debug.Log("slope: " + slopeMap[x, z].magnitude);
-                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.stone, slopeMap[x, z], cell);
+                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.slopes, slopeMap[x, z], cell);
                             continue;
                         }
                 }
@@ -177,15 +218,15 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-    public void VisualiseElement(ref List<Vector2Int> elements, Elements elementType, GroundType[] allowedGrounds)
+    public void VisualiseElement(ref List<Vector2Int> locations, Elements elementType, GroundType[] allowedGrounds)
     {
-        
-        //Debug.Log($"elements: {elements.Count}");
-        foreach(Vector2Int element in elements)
+        for (int i = 0; i < locations.Count; i++)
         {
+            Vector2Int element = locations[i];
             if (allowedGrounds.Contains(Grid.instance.Cells[element.x, element.y].Ground) == false)
             {
-                //Debug.LogWarning("wrong ground");
+                locations.RemoveAt(i);
+                i--;
                 continue;
             }
             //get cell
