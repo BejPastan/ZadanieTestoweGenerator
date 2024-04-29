@@ -6,7 +6,6 @@ public static class HeightMapGenerator
     public static void GenerateHeightMap(int width, int length, float maxElevation, float minElevation, out float[,] heightMap, out Vector2[,] gradientMap, float mainScale, float seed)
     {
         heightMap = new float[width, length];
-        gradientMap = new Vector2[width, length];
 
         float highestPoint = 0;
         float lowestPoint = 10;
@@ -60,7 +59,7 @@ public static class HeightMapGenerator
             }
         }
         gradientMap = MakeGradientMap(heightMap, mainScale);
-        Erode(ref heightMap, mainScale, gradientMap);
+        Erode(ref heightMap, gradientMap);
         gradientMap = MakeGradientMap(heightMap, mainScale);
     }
 
@@ -81,7 +80,6 @@ public static class HeightMapGenerator
                     gradientVector = CalcGradient(ref heightMap, new Vector2Int(i, j), cellSize);
                 }
                 gradient[i, j] = gradientVector;
-                Debug.Log($"out gradient: {gradient[i, j].magnitude}");
             }
         }
 
@@ -95,23 +93,19 @@ public static class HeightMapGenerator
         {
             gradientVector.x = heightMap[point.x + 1, point.y] - heightMap[point.x - 1, point.y];
             gradientVector.y = heightMap[point.x, point.y + 1] - heightMap[point.x, point.y - 1];
-            Debug.Log($"gradient: {gradientVector.magnitude}");
             gradientVector /= 2;
             gradientVector /= cellSize;
-            Debug.Log($"gradient: {gradientVector.magnitude}");
         }
         return gradientVector;
     }
 
-    private static void Erode(ref float[,] heightMap, float cellSize, Vector2[,] gradientMap)
+    private static void Erode(ref float[,] heightMap, Vector2[,] gradientMap)
     {
         for (int i = 0; i < heightMap.GetLength(0); i++)
         {
             for (int j = 0; j < heightMap.GetLength(1); j++)
             {
-                Debug.Log($"gradient: {gradientMap[i, j].magnitude} height: {heightMap[i, j]}");
                 heightMap[i, j] *= (-0.2f * Mathf.Pow(gradientMap[i, j].magnitude, 2))+1;
-                Debug.Log($"height: {heightMap[i, j]}");
             }
         }
     }

@@ -8,11 +8,11 @@ using UnityEngine;
 
 public static class WaterGenerator
 {
-    public static Vector2Int[] GenerateWater(ref float[,] heightMap, out List<Vector2Int> lakes)
+    public static List<Vector2Int> GenerateWater(ref float[,] heightMap, out List<Vector2Int> lakes)
     {
         //get random point
         Vector2Int startPoint = new(UnityEngine.Random.Range(0, heightMap.GetLength(0)), UnityEngine.Random.Range(0, heightMap.GetLength(1)));
-        return GenerateRiver(ref heightMap, startPoint, out lakes);
+        return GenerateRiver(ref heightMap, startPoint, out lakes).ToList();
     }
 
     public static Vector2Int[] GenerateRiver(ref float[,] heightMap, Vector2Int startPoint, out List<Vector2Int> lakes)

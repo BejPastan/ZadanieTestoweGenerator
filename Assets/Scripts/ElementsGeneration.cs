@@ -4,7 +4,7 @@ using UnityEngine;
 
 public static class ElementsGeneration
 {
-    public static List<Vector2Int> GenerateForests(ref List<Vector2Int> rivers)
+    public static List<Vector2Int> GenerateForests(ref List<Vector2Int> rivers, GroundType[] allowedGrounds)
     {
         List<Vector2Int> forests = new();
         List<Vector2Int> neighbours = new();
@@ -31,42 +31,34 @@ public static class ElementsGeneration
         //do untill have any neighbours
         for(int i = 0; i < 10000; i++)
         {
-            //Debug.Log($"i: {i} neighbours: {neighbours.Count}");
-            //get first neighbour
             Vector2Int neighbour = neighbours[0];
-            
+
             //calc distance to river
-            Vector2Int closestRiver;
             float chance = 1f;
-            if(FindClosestElement(Elements.river, neighbour, out closestRiver))
+            if (FindClosestElement(Elements.river, neighbour, out Vector2Int closestRiver))
             {
                 //Debug.Log("closest river: " + closestRiver);
                 float distance = Vector2.Distance(neighbour, closestRiver);
-                chance -= 0.2f * distance;
+                chance -= 0.1f * distance;
                 //check if have any neighbours in forests list
                 foreach(Vector2Int nextTo in HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap))
                 {
                     if(forests.Contains(nextTo))
                     {
-                        chance += 0.035f;
+                        chance += 0.018f;
                     }
                 }
 
-                //Debug.Log($"chance: {chance} distance: {distance}");
-
                 float diceRoll = UnityEngine.Random.Range(0f, 1f);
-                //Debug.Log($"diceRoll: {diceRoll} chance: {chance}");
                 if(diceRoll < chance)
                 {
-                    //Debug.LogWarning("forest");
                     forests.Add(neighbour);
 
                     Vector2Int[] potentialNewFields =  HeightMapService.GetLowestStrictNeighbour(neighbour, ref heightMap);
 
-                    //check if potential new fields are not in forests list
                     for (int j = 0; j < potentialNewFields.Length; j++)
                     {
-                        if (forests.Contains(potentialNewFields[j]) == false && Grid.instance.GetCellData(potentialNewFields[j].x, potentialNewFields[j].y).Ground == GroundType.plains)
+                        if (forests.Contains(potentialNewFields[j]) == false && allowedGrounds.Contains(Grid.instance.GetCellData(potentialNewFields[j].x, potentialNewFields[j].y).Ground))
                         {
                             neighbours.Add(potentialNewFields[j]);
                         }
@@ -161,6 +153,50 @@ public static class ElementsGeneration
         }
 
         return settlements;
+    }
+
+    public static List<Vector2Int> GeneratePaths(ref List<Vector2Int> settelments)
+    {
+        if(settelments.Count < 2)
+        {
+            Debug.Log("not enough settelments");
+            return new List<Vector2Int>();
+        }
+        //from each settelments go out 2 paths, one to closest and one to farthest
+        List<Vector2Int> paths = new();
+
+        foreach(Vector2Int settelment in settelments)
+        {
+            //get closest settelment
+            Vector2Int closestSettelment = new();
+            Vector2Int farthestSettelment = new();
+            float closestDistance = float.MaxValue;
+            float farthestDistance = 0;
+            for(int i = 0; i < settelments.Count; i++)
+            {
+                if(settelment != settelments[i])
+                {
+                    float distance = Vector2.Distance(settelment, settelments[i]);
+                    if(distance < closestDistance)
+                    {
+                        closestDistance = distance;
+                        closestSettelment = settelments[i];
+                    }
+                    if(distance > farthestDistance)
+                    {
+                        farthestDistance = distance;
+                        farthestSettelment = settelments[i];
+                    }
+                }
+            }
+
+            //get path to closest settelment using A*
+            List<Vector2Int> path = Grid.instance.GetPath(settelment, closestSettelment);
+            path.AddRange(Grid.instance.GetPath(settelment, farthestSettelment));
+        }
+
+
+        return paths;
     }
 
     private static bool FindClosestElement(Elements elementToFind,  Vector2Int startPos, out Vector2Int closestElement)

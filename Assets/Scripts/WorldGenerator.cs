@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Unity.VisualScripting;
-using UnityEditor;
 using UnityEngine;
 
 public class WorldGenerator : MonoBehaviour
@@ -38,22 +36,31 @@ public class WorldGenerator : MonoBehaviour
     {
         HeightMapGenerator.GenerateHeightMap(settings.width, settings.length, settings.maxElevation, settings.minElevation, out float[,] heightMap, out Vector2[,] slopeGradient, settings.cellSize, settings.seed);
 
+        //GROUND
         Grid.instance.Cells = new CellData[settings.width, settings.length];
         VisualiseHeightMap(ref heightMap, ref slopeGradient);
+        
+        //WATER
         List<Vector2Int> rivers = new();
         for(int i = 0; i < settings.riverCount; i++)
         {
-            Vector2Int[] river = WaterGenerator.GenerateWater(ref heightMap, out List<Vector2Int> lakes);
+            List<Vector2Int> river = WaterGenerator.GenerateWater(ref heightMap, out List<Vector2Int> lakes);
             //Debug.LogWarning($"river: {river.Length} lakes: {lakes.Count}");
-            VisualiseRivers(ref river);
+            VisualiseLines(ref river, Elements.river);
             rivers.AddRange(river);
             VisualiseLakes(ref lakes);
         }
-        List<Vector2Int> forests = ElementsGeneration.GenerateForests(ref rivers);
-        VisualiseElement(ref forests, Elements.forest, new GroundType[] { GroundType.plains, GroundType.highLands, GroundType.mountains, GroundType.mountainTop});
+        
+        //FORESTS
+        List<Vector2Int> forests = ElementsGeneration.GenerateForests(ref rivers, settings.ForestsGround);
+        VisualiseElement(ref forests, Elements.forest, settings.ForestsGround);
+        
+        forests.Clear();
 
+
+        //SETTELEMENTS
         List<Vector2Int> settlements = ElementsGeneration.GenerateSettlements(4, rivers);
-        VisualiseElement(ref settlements, Elements.settlement, new GroundType[] { GroundType.plains, GroundType.highLands });
+        VisualiseElement(ref settlements, Elements.settlement, settings.SettlementsGround);
         foreach (Vector2Int settlement in settlements)
         {
             //remove forest from around settlement in radius 2
@@ -72,6 +79,13 @@ public class WorldGenerator : MonoBehaviour
             }
 
         }
+    
+        rivers.Clear();
+
+        //PATHS
+        List<Vector2Int> paths = ElementsGeneration.GeneratePaths(ref settlements);
+        GroundType[] pathGrounds = new GroundType[] { GroundType.plains, GroundType.highLands, GroundType.mountains, GroundType.mountainTop };
+        VisualiseLines(ref paths, Elements.path);
     }
 
     public void VisualiseHeightMap(ref float[,] heightMap, ref Vector2[,] slopeMap)
@@ -140,8 +154,6 @@ public class WorldGenerator : MonoBehaviour
                                         continue;
                                     }
                             }
-                            Grid.instance.Cells[x, z] = new CellData(heightMap[x, z], GroundType.plains, slopeMap[x, z], cell);
-                            continue;
                         }
                     default:
                         {
@@ -154,38 +166,44 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-    public void VisualiseRivers(ref Vector2Int[] riverMap)
+    public void VisualiseLines(ref List<Vector2Int> linePoints, Elements elementType)
     {
-        for (int i = 0; i < riverMap.Length; i++)
+        bool endAfterThis = false;
+        for (int i = 0; i < linePoints.Count; i++)
         {
-            if (Grid.instance.Cells[riverMap[i].x, riverMap[i].y].Ground == GroundType.water)
+            if (Grid.instance.Cells[linePoints[i].x, linePoints[i].y].Ground == GroundType.water)
             {
                 //remove all elements after from array
-                Array.Resize(ref riverMap, i);
+                linePoints.RemoveRange(i, linePoints.Count - i);
                 break;
             }
-            Vector2Int river = riverMap[i];
+            if (Grid.instance.Cells[linePoints[i].x, linePoints[i].y].Elements.Contains(elementType))
+            {
+                endAfterThis = true;
+            }
+
+            Vector2Int point = linePoints[i];
             //create river object
             
             //calc river position
             Vector2 cross1, cross2;
             if(i == 0)
             {
-                cross1 = riverMap[i];
+                cross1 = linePoints[i];
             }
             else
             {
-                cross1 = riverMap[i] + riverMap[i-1];
+                cross1 = linePoints[i] + linePoints[i-1];
                 cross1 /= 2;
             }
 
-            if(i == riverMap.Length-1)
+            if(i == linePoints.Count-1)
             {
-                cross2 = riverMap[i];
+                cross2 = linePoints[i];
             }
             else
             {
-                cross2 = riverMap[i] + riverMap[i + 1];
+                cross2 = linePoints[i] + linePoints[i + 1];
                 cross2 /= 2;
             }
             //calc angle beetwen points
@@ -195,13 +213,17 @@ public class WorldGenerator : MonoBehaviour
             Vector2 pos = (cross1 + cross2) / 2;
 
 
-            Transform riverObj = Instantiate(elementPref, new Vector3(river.x, river.y, 0), Quaternion.identity).transform;
-            riverObj.GetChild(0).localScale = new Vector3(distance, 1, 1);
+            Transform lineObj = Instantiate(elementPref, new Vector3(point.x, point.y, 0), Quaternion.identity).transform;
+            lineObj.GetChild(0).localScale = new Vector3(distance, 1, 1);
             //set rotation from angle
-            riverObj.GetChild(0).localRotation = Quaternion.Euler(0, 0, angle);
-            riverObj.GetChild(0).position = new Vector2(pos.x, pos.y);
+            lineObj.GetChild(0).localRotation = Quaternion.Euler(0, 0, angle);
+            lineObj.GetChild(0).position = new Vector2(pos.x, pos.y);
             //add river to cell
-            Grid.instance.Cells[river.x, river.y].AddElement(Elements.river, riverObj);
+            Grid.instance.Cells[point.x, point.y].AddElement(elementType, lineObj);
+            if(endAfterThis)
+            {
+                break;
+            }
         }
     }
 
@@ -223,7 +245,7 @@ public class WorldGenerator : MonoBehaviour
         for (int i = 0; i < locations.Count; i++)
         {
             Vector2Int element = locations[i];
-            if (allowedGrounds.Contains(Grid.instance.Cells[element.x, element.y].Ground) == false)
+            if (allowedGrounds.Contains(Grid.instance.Cells[element.x, element.y].Ground) == false || Grid.instance.GetCellData(locations[i].x, locations[i].y).Elements.Contains(elementType))
             {
                 locations.RemoveAt(i);
                 i--;
@@ -251,4 +273,8 @@ public class WorldSettings : ScriptableObject
     public float cellSize;
 
     public int riverCount;
+
+    public GroundType[] ForestsGround;
+
+    public GroundType[] SettlementsGround;
 }

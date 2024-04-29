@@ -15,7 +15,9 @@ MonoBehaviour:
   seed: 2
   width: 100
   length: 100
-  maxElevation: 100
+  maxElevation: 130
   minElevation: -10
   cellSize: 3
-  riverCount: 10
+  riverCount: 15
+  ForestsGround: 01000000020000000300000004000000
+  SettlementsGround: 0100000002000000

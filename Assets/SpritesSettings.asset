@@ -20,8 +20,9 @@ MonoBehaviour:
   - {fileID: 21300000, guid: a8eb58ee3f3d28b498cc6d77a98ea787, type: 3}
   - {fileID: 21300000, guid: 4b3276f9ef281974f87cc47ddbb4288d, type: 3}
   - {fileID: 21300000, guid: 15a96c2025fc25840be92b4ca477c01e, type: 3}
-  elements: 000000000100000002000000
+  elements: 00000000010000000200000003000000
   elementSprite:
   - {fileID: 21300000, guid: d83fdb656bf44ca46997360b15ea24ff, type: 3}
   - {fileID: 21300000, guid: 312ad13d9fb4de64aad0975bd61fe7d4, type: 3}
   - {fileID: 21300000, guid: a49cb6d959162f04890d2b74537b7321, type: 3}
+  - {fileID: 21300000, guid: 4204d9df6bdeb374580c653e4b7ac6ac, type: 3}

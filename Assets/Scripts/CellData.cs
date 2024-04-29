@@ -81,7 +81,8 @@ public enum Elements
 {
     river,
     forest,
-    settlement
+    settlement,
+    path
 }
 
 [CreateAssetMenu(fileName = "ElementSprite", menuName = "ElementSprite")]
